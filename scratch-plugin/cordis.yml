@@ -1,3 +1,5 @@
 - insert:
     - id: hello
-      name: 'D:/QQQQQ/ClaudeCode/9/deepseek-harness/scratch-plugin/src/my-plugin.ts'
+      name: 'C:/QQQQQ/claudeCode/dsh-playground/scratch-plugin/src/my-plugin.ts'
+      config:
+        greeting: 'Hi there'
