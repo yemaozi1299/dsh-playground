@@ -1,9 +1,9 @@
 - insert:
     - id: counter
       name: 'C:/QQQQQ/claudeCode/dsh-playground/scratch-plugin/src/greet-counter.ts'
+    - id: greeter-random
+      name: 'C:/QQQQQ/claudeCode/dsh-playground/scratch-plugin/src/greeter-random.ts'
     - id: hello
       name: 'C:/QQQQQ/claudeCode/dsh-playground/scratch-plugin/src/my-plugin.ts'
-      config:
-        greeting: 'Hi there'
     - id: logger
       name: 'C:/QQQQQ/claudeCode/dsh-playground/scratch-plugin/src/greet-logger.ts'

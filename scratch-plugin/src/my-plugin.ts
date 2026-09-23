@@ -1,5 +1,4 @@
 import type { Context } from "@deepseek-ai/cordis";
-import Schema from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 
 declare module "@deepseek-ai/cordis" {
@@ -9,24 +8,18 @@ declare module "@deepseek-ai/cordis" {
 }
 
 export const name = "greet-tool";
-export const inject = ["tools", "greetCounter"];
+export const inject = ["tools", "greetCounter", "greeter"];
 
-export interface Config {
-  greeting: string;
-}
 
-export const Config: Schema<Config> = Schema.object({
-  greeting: Schema.string().default("Hello"),
-});
-
-export function apply(ctx: Context, config: Config) {
+export function apply(ctx: Context) {
   console.log("greet 插件加载");
   ctx.effect(() => {
     console.log("effect 注册");
     return () => {
       console.log("effect 清理完毕");
-    }; // 插件卸载时，框架会调这个函数
+    };
   });
+  // 登记的是工具，给模型用
   ctx.tools.register(
     defineTool({
       name: "greet",
@@ -45,7 +38,7 @@ export function apply(ctx: Context, config: Config) {
       async execute(args) {
         const times = ctx.greetCounter.bump();
         ctx.emit("greet/called", { name: args.name, times });
-        return `${config.greeting}, ${args.name}!（第 ${times} 次问候）`;
+        return `${ctx.greeter.greet(args.name)}（第 ${times} 次问候）`;
       },
     }),
   );
