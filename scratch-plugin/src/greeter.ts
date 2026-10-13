@@ -1,24 +1,26 @@
 import { Service, type Context } from "@deepseek-ai/cordis";
 
-/**
- * declare module 管「类型认不认识」，super(ctx, "greeter") 管「运行时真不真注册」
- */
+// 定义拥有「有哪几种语言」这份清单：类型从它推出来，消费方也不用再抄一遍。
+export const GREET_LANGUAGES = ["zh", "en"] as const;
 
-// 类型声明
+export type GreetLanguage = (typeof GREET_LANGUAGES)[number];
+
+/** 一次问候请求。定义拥有 Request 类型，实现和消费方都依赖它。 */
+export interface GreetRequest {
+  name: string;
+  language: GreetLanguage;
+}
+
 declare module "@deepseek-ai/cordis" {
   interface Context {
     greeter: Greeter;
   }
 }
 
-
-// 注册
 export abstract class Greeter extends Service {
   constructor(ctx: Context) {
     super(ctx, "greeter");
   }
 
-  // 只有方法名，没有实现
-  // abstract 的意思就是「这里空着，留给子类填」
-  abstract greet(name: string): string;
+  abstract greet(request: GreetRequest): string;
 }

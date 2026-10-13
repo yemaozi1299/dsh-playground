@@ -1,9 +1,9 @@
 import type { Context } from "@deepseek-ai/cordis";
-import { Greeter } from "./greeter.ts";
+import { Greeter, type GreetRequest } from "./greeter.ts";
 
 class FixedGreeter extends Greeter {
-  greet(name: string): string {
-    return `你好，${name}`;
+  greet({ name, language }: GreetRequest): string {
+    return language === "zh" ? `固定问候：你好，${name}` : `Fixed greeting: hello, ${name}`;
   }
 }
 
