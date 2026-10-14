@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>速查 0001 · DSH 插件运行时与打包</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>速查 0001 · DSH 插件运行时与打包</h1>
+<p class="subtitle">压缩过的知识点，不是课。查东西时看这一页；要动手时去看 <a href="../lessons/0001-basic-publish-bundle-and-profile.html">lesson 0001</a>。术语定义在 <a href="../GLOSSARY.md">GLOSSARY.md</a>。</p>
+
+<h2>一、点一次发送之后发生了什么</h2>
+<pre><code>我打字发送
+  → 记下「用户说了这句话」
+  → 把说明书（各插件 register 的）+ 历史打包，发给模型
+  → 模型说：请调用 greet，参数 name=Ada
+  → 跑我写的 execute，得到 Hello, Ada!
+  → 把结果再发给模型
+  → 模型用正常人话回复我</code></pre>
+<p>一轮「模型请求 + 它点名的工具」= 一个<b>步骤</b>；一次发送到模型不再调工具 = 一个<b>回合</b>。</p>
+
+<h2>二、三份东西，不许混</h2>
+<table>
+  <thead><tr><th>这一份</th><th>谁写的</th><th>谁看</th><th>出问题时的表现</th></tr></thead>
+  <tbody>
+    <tr><td>说明书（name / description / parameters）</td><td>插件的 <code>register</code></td><td>模型</td><td>模型从不调用这个工具</td></tr>
+    <tr><td><code>execute</code></td><td>插件作者</td><td>只有程序</td><td>调用了，但结果不对</td></tr>
+    <tr><td>网页气泡</td><td>界面</td><td>我</td><td>显示不对／刷新后消失或重现</td></tr>
+  </tbody>
+</table>
+<p>口诀：<b>先加工具，不要先改引擎。</b> 网页看不见调用，先问「插件挂上了吗、说明书清楚吗」，不要先怀疑界面。</p>
+
+<h2>三、插件的五个阶段</h2>
+<pre><code>PENDING（等依赖）→ LOADING（跑 apply）→ ACTIVE（在跑）→ UNLOADING → DISPOSED
+                                   ↘ apply 报错 → FAILED</code></pre>
+<ul>
+  <li><code>inject = ['tools']</code>：停在 <code>PENDING</code> 等这些服务全部就绪（写 100 个就等 100 个）。</li>
+  <li>通过 <code>ctx</code> 登记的工具 / 事件 / effect：插件卸载时<b>自动撤销</b>。</li>
+  <li>框架不认识的资源（定时器、连接）用 <code>ctx.effect(() =&gt; { …; return 清理函数 })</code> 交出去。</li>
+  <li>HMR = 杀旧插件 → 清注册 → 载入新代码 → 跑新 apply。</li>
+</ul>
+
+<h2>四、事件：四种模式</h2>
+<table>
+  <thead><tr><th>模式</th><th>行为</th><th>记法</th></tr></thead>
+  <tbody>
+    <tr><td><code>emit</code></td><td>广播，返回值被忽略（喊的人不等回话）</td><td>参数会传给 <code>on</code></td></tr>
+    <tr><td><code>bail</code></td><td>第一个非空返回就短路</td><td>有答案就停</td></tr>
+    <tr><td><code>serial</code></td><td>监听者排队依次执行</td><td>按顺序来</td></tr>
+    <tr><td><code>waterfall</code></td><td>流水线；<b>必须调 <code>next()</code></b>，否则后面收不到</td><td>少一次 next 就断链</td></tr>
+  </tbody>
+</table>
+<p>服务是点名调用（一对一），事件是广播（一对多）。</p>
+
+<h2>五、一条能力的三种角色</h2>
+<table>
+  <thead><tr><th>角色</th><th>负责</th><th>例子</th></tr></thead>
+  <tbody>
+    <tr><td>定义</td><td>抽象契约、Request 类型、清单</td><td><code>abstract class ShellExecutor</code>；<code>Greeter</code></td></tr>
+    <tr><td>实现</td><td>具体做法</td><td><code>bash-local</code> / <code>pwsh-sandbox</code>；<code>RandomGreeter</code></td></tr>
+    <tr><td>消费</td><td>只认定义，<code>ctx.shell.run(...)</code></td><td><code>tool-bash</code>；<code>my-plugin.ts</code></td></tr>
+  </tbody>
+</table>
+<div class="callout">
+<p><strong>拆分的尺子：</strong>会有第二个需要独立演进的实现吗？会 → 抽抽象定义；不会 → 一个类写完。</p>
+<p><strong>放哪里的尺子：</strong>部署级决定放 yml（换实现）；每个用户、每次调用不同的放运行期参数。</p>
+<p><strong>一个组合只挂一个提供方。</strong>重复挂不报错，后挂的被静默忽略。</p>
+</div>
+
+<h2>六、两份清单，以及打包之后多了什么</h2>
+<table>
+  <thead><tr><th></th><th>回答什么问题</th><th>在哪</th></tr></thead>
+  <tbody>
+    <tr><td>package.json（购物清单）</td><td>允许引用哪些包</td><td><code>workspace:^</code> = 用本仓库里的那份</td></tr>
+    <tr><td>cordis.patch.yml（启动清单）</td><td>启动时挂哪些行、什么 config</td><td>练习场里靠 <code>--patch</code> 叠加</td></tr>
+    <tr><td>组合包 <code>dsh.bundle</code></td><td>这个包贡献什么（一个 patch 层）</td><td><code>hello-plugin/package.json</code></td></tr>
+    <tr><td>profile <code>dsh.profile</code></td><td>这套配置由哪些组合包、按什么顺序组成</td><td><code>$DSH_HOME/profiles/demo</code></td></tr>
+  </tbody>
+</table>
+<p><b>没有东西同时是组合包和 profile。</b></p>
+
+<h3>层顺序（生效配置 = 空根上逐层叠加）</h3>
+<pre><code>1. profile 的 dsh.profile.bundles 里各组合包的 patch（按列表顺序）
+2. profile 自己的 cordis.patch.yml
+3. $DSH_HOME/cordis.patch.yml
+4. 每个 --patch &lt;path&gt; overlay（按命令行顺序）</code></pre>
+<p>后应用的层<b>按行胜出</b>，并且 patch <b>替换整行 <code>config</code>，不是深合并</b>：要覆盖一行，必须重述这一行需要的每个键。用户也能在他自己的 profile 里覆盖你的行，不需要改你的包。</p>
+
+<h2>七、命令备忘</h2>
+<pre><code># 环境
+pnpm install
+pnpm run typecheck
+pnpm run build              # 第一次起 web 之前需要；之后改练习插件通常不用
+
+# 带着练习插件起网页
+pnpm dsh web --patch ./scratch-plugin/cordis.yml
+
+# 只编译练习场（不写 lib/，沙箱里也能跑）
+pnpm exec tsc -p scratch-plugin/tsconfig.json --noEmit
+
+# 离线对照实验
+node --import ./tmp/register-alias.mjs tmp/greeter-check.ts
+node --import ./tmp/register-alias.mjs tmp/echo-adapter/check.ts
+node --import ./tmp/register-alias.mjs tmp/echo-adapter/check-theirs.ts
+
+# basic/publish：装进 demo profile（要在自己的终端跑）
+pnpm dsh plugin --profile demo add ./hello-plugin
+pnpm dsh --profile demo --dump-config
+pnpm dsh --profile demo</code></pre>
+
+<h2>八、文件地图与禁区</h2>
+<table>
+  <thead><tr><th>路径</th><th>是什么</th><th>能不能乱进</th></tr></thead>
+  <tbody>
+    <tr><td><code>scratch-plugin/</code></td><td>练习场</td><td>随便改</td></tr>
+    <tr><td><code>packages/</code></td><td>产品代码</td><td>要改功能才进</td></tr>
+    <tr><td><code>docs/</code></td><td>说明</td><td>迷路时查</td></tr>
+    <tr><td><code>apps/</code></td><td>启动入口</td><td>很少改</td></tr>
+    <tr><td><code>vendor/</code></td><td>拷进来的 Cordis 等</td><td><b>不要改</b></td></tr>
+    <tr><td><code>packages/core/agent-loop/</code></td><td>循环本身</td><td><b>先别碰</b></td></tr>
+    <tr><td>Session 日志格式 / 版本</td><td>存档格式</td><td><b>先别碰</b></td></tr>
+  </tbody>
+</table>
+<p>找文件用搜索，比逛文件夹快：例如 <code>name: 'todo_write'</code>，范围 <code>packages/todo</code>。</p>
+
+<footer>
+主要来源：<a href="../../docs/user/develop/basic/publish.zh.md">docs/user/develop/basic/publish.zh.md</a>、<a href="../../packages/bundle/base/cordis.patch.yml">packages/bundle/base/cordis.patch.yml</a>、<a href="../../packages/shell/shell/README.zh.md">packages/shell/shell/README.zh.md</a>。更新于 2026-10-14。
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0001 · 把 hello-plugin 装进 demo profile</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>把 hello-plugin 装进 demo profile</h1>
+<p class="subtitle">教学工作区 lesson 0001 · 接你的第 8 课 C 之后，官方路径是 <code>basic/publish</code> · 约 15 分钟（不含等 pnpm）</p>
+
+<div class="win">
+<h3>这一节的胜利条件</h3>
+<p>在你自己的终端里，同一次启动里看到两样东西：</p>
+<pre><code>pnpm dsh --profile demo --dump-config   # 输出里有一层  # == dsh-hello-plugin
+pnpm dsh --profile demo                 # 终端打印  [hello-plugin] plugin loaded!</code></pre>
+<p>看到这两样，<code>basic/publish</code> 就结了 —— 你也第一次有了一个<b>不靠 <code>--patch</code>、能被 profile 记住</b>的插件。</p>
+</div>
+
+<h2>为什么现在做这个</h2>
+<p>你的 <code>basic/</code>、<code>framework/</code>、<code>practice/</code> 三层都走完了，product 里那条能力缝你也能自己写（三个 greeter 文件 + echo 适配器）。整个官方路径上只剩 <code>basic/publish</code> 这一节没走完，而且你已经做到一半：<code>hello-plugin/</code> 建好了、<code>dsh plugin --profile demo add</code> 跑过了、profile 目录也生成了。剩下的是把最后两条命令跑完，以及把这一节的两个概念真正分清。</p>
+
+<h2>知识 · 两个概念，两种 manifest</h2>
+<p>你已经很熟"两份清单"了：<code>package.json</code> 是购物清单（允许引用），<code>cordis.patch.yml</code> 是启动清单（真正挂上）。<b><code>publish</code> 这一节做的，是把这两样东西打包成一个别人能安装的东西。</b></p>
+<table>
+  <thead><tr><th></th><th>组合包（bundle）</th><th>profile</th></tr></thead>
+  <tbody>
+    <tr><td>回答什么</td><td>这个包<b>贡献</b>什么</td><td>这套配置<b>由哪些组合包按什么顺序组成</b></td></tr>
+    <tr><td>manifest</td><td><code>dsh.bundle.patch</code></td><td><code>dsh.profile.bundles</code></td></tr>
+    <tr><td>你在哪写它</td><td>你的包里（<code>hello-plugin/package.json</code>）</td><td><code>$DSH_HOME/profiles/demo/package.json</code>，由 <code>dsh plugin</code> 维护</td></tr>
+    <tr><td>谁用它</td><td>安装它的人</td><td><code>pnpm dsh --profile demo</code> 启动它的人</td></tr>
+  </tbody>
+</table>
+<p><b>没有东西同时是两者。</b> 你写的 <code>hello-plugin</code> 是组合包；<code>~/.dsh/profiles/demo</code> 是 profile。你刚才那条 <code>add</code> 命令，做的是"把组合包登记进 profile 的 bundles 列表"。</p>
+
+<h2>知识 · 层顺序，和一条容易踩的规则</h2>
+<pre><code>1. dsh.profile.bundles 里各组合包的 patch（按列表顺序）
+2. profile 自己的 cordis.patch.yml
+3. $DSH_HOME/cordis.patch.yml
+4. 每个 --patch &lt;path&gt;（按命令行顺序）</code></pre>
+<p>后应用的层<b>按行胜出</b>。但注意：patch <b>替换整行的 <code>config</code>，不是深合并</b>。所以谁要覆盖你的那一行，必须把这一行需要的每个键都重述一遍 —— 这也是为什么组合包应该给"用户大概率会保留的默认值"，其余交给 schema。</p>
+
+<h2>动手</h2>
+<p>在<b>你自己的终端</b>（不是这个网页会话里 —— 沙箱会挡住 esbuild 子进程，报 <code>spawn EPERM</code>），仓库根目录下：</p>
+<pre><code>cd C:\QQQQQ\claudeCode\dsh-playground
+
+# 1. 先只验证层，不启动
+pnpm dsh --profile demo --dump-config
+
+# 2. 真的启动
+pnpm dsh --profile demo</code></pre>
+<p>第 1 条命令的输出很长，用搜索找 <code># == dsh-hello-plugin</code> 这一行 —— 它就是"你的组合包贡献的那一层"的标记。第 2 条启动后，终端应该出现你写在 <code>index.js</code> 里的那句日志。</p>
+<div class="callout">
+<p><strong>先别删 <code>hello-plugin/</code>。</strong>它已经提交在 <code>6bed782728</code>，是 <code>basic/publish</code> 的产物，和练习场 <code>scratch-plugin/</code> 不是一回事。</p>
+</div>
+
+<h2>检查你是否真的懂了</h2>
+
+<div class="quiz" data-quiz data-explain="bundles 列表里的每一项，启动时都会贡献它自己那一层配置。">
+  <p class="quiz-q">1. <code>dsh-hello-plugin</code> 出现在 <code>dsh.profile.bundles</code> 列表里，说明什么？</p>
+  <button class="quiz-opt" data-why="base 的启动清单是产品自己的，你的练习包不在里面——这正是它需要 profile 的原因。">这个包被写进了产品 base 组合包的启动清单里</button>
+  <button class="quiz-opt is-answer" data-why="声明了 dsh.bundle，启动时它的那一层就会被应用。">这个包声明了 dsh.bundle，启动会应用它贡献的那一层</button>
+  <button class="quiz-opt" data-why="被 import 只影响能不能引用，进不了 bundles 列表。">这个包被别人 import 了，Node 于是把它装进依赖里</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="按行胜出、整行替换，所以覆盖一行必须重述它需要的每个键。">
+  <p class="quiz-q">2. 关于层的生效规则，哪一句是对的？</p>
+  <button class="quiz-opt" data-why="方向反了：后应用的层赢。">先应用的层按行胜出，patch 会合并每个 config 的键</button>
+  <button class="quiz-opt" data-why="前半句对，后半句错：不是深合并。">后应用的层按行胜出，patch 深合并每个 config 的键</button>
+  <button class="quiz-opt is-answer" data-why="替换整行，不深合并——所以覆盖者要重述整行。">后应用的层按行胜出，patch 替换整行 config，不深合并</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="层没出现，先确认它有没有被登记进这一个 profile。">
+  <p class="quiz-q">3. <code>--dump-config</code> 里找不到 <code># == dsh-hello-plugin</code>，先查哪一处？</p>
+  <button class="quiz-opt is-answer" data-why="bundles 列表决定应用哪些层，没登记就没有这一层。">profile 的 package.json 里 bundles 列表有没有这个包</button>
+  <button class="quiz-opt" data-why="apply 没导出会表现为启动后没有日志，不会让整层消失。">hello-plugin 的 index.js 里 apply 有没有正确导出</button>
+  <button class="quiz-opt" data-why="产品 base 不该有它——写进去才是那个要避免的错误。">产品 base 组合包有没有把 hello 那一行插进去</button>
+</div>
+
+<h2>卡住了看这里</h2>
+<table>
+  <thead><tr><th>现象</th><th>先查什么</th></tr></thead>
+  <tbody>
+    <tr><td><code>dsh: command not found</code></td><td>源码 checkout 用 <code>pnpm dsh ...</code>，不是裸 <code>dsh</code>（教程正文写的是已安装 CLI 的情形）。</td></tr>
+    <tr><td><code>--dump-config</code> 里没有那一层</td><td>看 <code>~/.dsh/profiles/demo/package.json</code>：<code>dsh.profile.bundles</code> 里有没有 <code>dsh-hello-plugin</code>；再看这个包有没有 <code>dsh.bundle</code> 声明。少了 <code>dsh.bundle</code> 的包"仍然可以安装，但只作为普通依赖"，且不会激活任何层。</td></tr>
+    <tr><td>启动没打印日志</td><td>确认 <code>index.js</code> 是具名导出 <code>name</code> + <code>apply</code>；服务类才用 <code>export default</code>，两者不能混。</td></tr>
+    <tr><td><code>spawn EPERM</code> / <code>esbuild</code> 报错</td><td>你在这个网页会话里跑了。换到自己的终端 —— 这是沙箱限制，不是代码问题。</td></tr>
+  </tbody>
+</table>
+
+<h2>这一节之后</h2>
+<p>把两条命令的实际输出贴回来（尤其是 <code># == dsh-hello-plugin</code> 那一层和那行日志），我据此写一条 learning record，然后我们再定下一课：要么做"把小工具搬成 <code>packages/</code> 正规包"（第 6/7 课流程的实战），要么挑一个你自己想加的插件动手。两件都不急，先看 <code>MISSION.md</code> 里那段待确认的目标 —— 如果那写得不对，下一课就会跑偏。</p>
+
+<div class="callout">
+<p><strong>随时可以问。</strong>任何一句没看懂、任何一条命令的输出，直接把原文贴给我。我是你的老师，卡住是正常的，猜过去才是浪费。</p>
+</div>
+
+<footer>
+主要来源：<a href="../../docs/user/develop/basic/publish.zh.md">docs/user/develop/basic/publish.zh.md</a>（打包与安装插件）。
+配套速查：<a href="../reference/0001-dsh-plugin-runtime-cheatsheet.html">速查 0001 · DSH 插件运行时与打包</a>。术语：<a href="../GLOSSARY.md">GLOSSARY.md</a>。教学偏好：<a href="../NOTES.md">NOTES.md</a>。
+</footer>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
