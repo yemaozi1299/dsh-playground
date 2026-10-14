@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>速查 0002 · 正规包骨架与账单</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>速查 0002 · 正规包骨架与账单</h1>
+<p class="subtitle">压缩过的知识点，不是课。要动手时看 <a href="../lessons/0002-promote-practice-into-a-package.html">lesson 0002</a>。术语在 <a href="../GLOSSARY.md">GLOSSARY.md</a>，权威清单在 <a href="../../docs/cookbook/adding-a-package.zh.md">docs/cookbook/adding-a-package.zh.md</a>。</p>
+
+<h2>一、目录长什么样</h2>
+<pre><code>packages/&lt;组&gt;/&lt;包&gt;/          ← 只能两层，多一层少一层都错
+  package.json              ① 身份：名字、入口、依赖
+  tsconfig.json             ② 这个包自己的编译边界
+  src/index.ts              ③ 插件本体：name / inject / apply
+  tests/*.spec.ts           ④ 行为测试（不在 src 里）
+  README.md / README.zh.md  ⑤ 包的契约，门禁查章节结构
+  locale/en.json zh.json    ⑥ 界面展示名（可选）</code></pre>
+<p>练习场 → 正规包的对应：<code>src/my-plugin.ts</code> → <code>src/index.ts</code>；<code>scratch-plugin/tsconfig.json</code> → 包内 <code>tsconfig.json</code>；"没有" → <code>package.json</code> / <code>tests/</code> / <code>README</code>。</p>
+
+<h2>二、package.json 的不变式（<code>pnpm run constraints</code> 逐条查）</h2>
+<table>
+  <thead><tr><th>字段</th><th>必须是什么</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td><code>@deepseek-ai/dsh-&lt;名&gt;</code>；experimental 组必须是 <code>@deepseek-ai/dsh-experimental-&lt;名&gt;</code></td></tr>
+    <tr><td><code>version</code></td><td>与根 <code>package.json</code> 完全一致（dsh 家族共用一个版本号）</td></tr>
+    <tr><td><code>private</code></td><td>进了 <code>PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES</code> 就必须 <code>true</code>，且不能有 <code>publishConfig</code>；否则相反</td></tr>
+    <tr><td><code>type</code></td><td><code>module</code></td></tr>
+    <tr><td><code>main</code> / <code>types</code></td><td><code>lib/index.js</code> / <code>lib/types/index.d.ts</code></td></tr>
+    <tr><td><code>exports["."]</code></td><td>必须同时有 <code>types: "./lib/types/index.d.ts"</code> 和 <code>default: "./lib/index.js"</code></td></tr>
+    <tr><td><code>files</code></td><td>正好是 <code>["lib/index.js", "lib/types/**/*.d.ts"]</code>（有 <code>bin</code> / <code>locale</code> / <code>client</code> 时按规则追加）</td></tr>
+    <tr><td><code>@deepseek-ai/cordis</code></td><td>同时出现在 <code>peerDependencies</code> 和 <code>devDependencies</code>，两处范围一致（vendor → <code>workspace:~</code>）</td></tr>
+    <tr><td>其它 peer 依赖</td><td>每个都在 <code>devDependencies</code> 里镜像一份；DSH 包用 <code>workspace:*</code></td></tr>
+  </tbody>
+</table>
+<p>报错会直接把正确列表打出来，照抄即可。</p>
+
+<h2>三、四处登记，少一处症状不同</h2>
+<table>
+  <thead><tr><th>登记处</th><th>写什么</th><th>少了的症状</th></tr></thead>
+  <tbody>
+    <tr><td><code>package.json</code></td><td>名字、入口、依赖</td><td>目录只是文件夹；<code>constraints</code> 报错</td></tr>
+    <tr><td><code>tsconfig.host.json</code>（或 <code>tsconfig.client.json</code>）的 <code>references</code></td><td><code>{ "path": "./packages/&lt;组&gt;/&lt;包&gt;" }</code>，<b>只加一个聚合</b></td><td>不属于任何编译单元，<code>typecheck</code> 不检查它</td></tr>
+    <tr><td><code>tsconfig.base.json</code> 的生成区</td><td>不用手写：<code>pnpm run gen-tsconfig-paths</code> 扫 <code>packages/*/*</code> 生成</td><td><code>verify-tsconfig-paths</code> 在 CI 里报漂移</td></tr>
+    <tr><td>启动清单（profile 或 <code>--patch</code>）</td><td>一行 <code>insert</code>，<code>name</code> 指包名或 <code>lib/index.js</code> 绝对路径</td><td>编译全过、测试全绿，网页里没有这个工具</td></tr>
+  </tbody>
+</table>
+
+<h2>四、搬不搬的尺子</h2>
+<table>
+  <thead><tr><th></th><th><code>scratch-plugin/</code> + <code>--patch</code></th><th><code>packages/</code></th></tr></thead>
+  <tbody>
+    <tr><td>可见范围</td><td>只有你、这台机器</td><td>整个仓库、CI、（默认）npm 使用者</td></tr>
+    <tr><td>改动代价</td><td>改完刷新</td><td>编译 + 门禁 + 测试 + README 契约</td></tr>
+    <tr><td>判断句</td><td>还在试、自己用、不确定</td><td>会长期存在，别人或未来的你会依赖它</td></tr>
+  </tbody>
+</table>
+<p><code>packages/experimental/</code> 下的包<b>默认属于发布家族</b>；要留在本地，就把目录写进 <code>scripts/experimental-package-policy.ts</code> 的 <code>PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES</code>，并在 manifest 里写 <code>"private": true</code>。两处必须一起改。</p>
+
+<h2>五、命令顺序</h2>
+<pre><code>pnpm install                                             # 认下新目录
+pnpm run gen-tsconfig-paths                              # 补别名（--check 版本是 verify-tsconfig-paths）
+pnpm run constraints                                     # package.json 不变式
+pnpm exec tsc -b packages/&lt;组&gt;/&lt;包&gt;                       # 编译这个包 → lib/types/index.d.ts
+pnpm run typecheck                                       # 全仓库口径（较慢，含构建）
+
+# 真挂载（需要先构建出 lib/index.js，那是 main 指向的构建产物）
+pnpm run build
+pnpm dsh web --patch ./scratch-plugin/&lt;你的&gt;.patch.yml</code></pre>
+<p>为什么练习场能直读 <code>src/*.ts</code>、正规包要先 build：<code>package.json</code> 的入口指向 <code>lib/index.js</code>，那是构建产物；<code>src</code> 只有 tsx 读得动。</p>
+
+<h2>六、账单（今天 / 以后）</h2>
+<ul>
+  <li><b>跑起来要付：</b><code>package.json</code> 不变式、聚合登记、别名生成、<code>tsc -b</code> 过。</li>
+  <li><b>进产品还要付：</b><code>README.md</code> + <code>README.zh.md</code>（含 Model Experience 与 Known Limitations 两节，<code>verify-package-readme-model-experience</code> / <code>-limitations</code> 查）、<code>tests/</code> 行为测试（CI 覆盖率按文件 100%）、<code>locale/</code> 展示名（<code>verify-package-meta</code>）、<code>doc-sync</code> / <code>hygiene</code> / <code>publint</code>。</li>
+</ul>
+
+<h2>七、报错对照</h2>
+<table>
+  <thead><tr><th>报错里的关键词</th><th>去改哪</th></tr></thead>
+  <tbody>
+    <tr><td><code>must set "private": true</code> / <code>must not set "private": true</code></td><td>私有清单与 manifest 两处要对齐</td></tr>
+    <tr><td><code>version must match root version</code></td><td>抄根 <code>package.json</code> 的 <code>version</code></td></tr>
+    <tr><td><code>files must be [...]</code></td><td>照报错里给的列表写</td></tr>
+    <tr><td><code>must start with "@deepseek-ai/dsh-experimental-"</code></td><td>改包名，experimental 组前缀是硬性的</td></tr>
+    <tr><td><code>@deepseek-ai/cordis must be a peerDependency</code> / <code>ranges must match</code></td><td>peer 与 dev 两处都写，范围一致</td></tr>
+    <tr><td><code>spawn EPERM</code> / esbuild</td><td>在网页会话里跑了：换自己的终端</td></tr>
+  </tbody>
+</table>
+
+<footer>
+主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md">docs/cookbook/adding-a-package.zh.md</a>、<a href="../../scripts/check-workspace-constraints.ts">scripts/check-workspace-constraints.ts</a>、<a href="../../packages/experimental/AGENTS.md">packages/experimental/AGENTS.md</a>、<a href="../../packages/experimental/tool-agent-team/package.json">packages/experimental/tool-agent-team/</a>。更新于 2026-10-14。
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0002 · 把练习搬成一个正规包</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>把练习搬成一个正规包：最小骨架</h1>
+<p class="subtitle">教学工作区 lesson 0002 · 接 basic/publish 之后 · 约 25 分钟（大半时间在等命令）· 速查在 <a href="../reference/0002-dsh-package-skeleton.html">速查 0002</a></p>
+
+<div class="win">
+<h3>这一节的胜利条件</h3>
+<p>把 <code>greet</code> 工具搬进 <code>packages/experimental/hello-greet/</code>，然后四条命令各自留下一样能看见的东西：</p>
+<table>
+  <thead><tr><th>命令（在<b>你自己的终端</b>）</th><th>留下什么</th></tr></thead>
+  <tbody>
+    <tr><td><code>pnpm install</code></td><td>workspace 把这个新目录认成一个包</td></tr>
+    <tr><td><code>pnpm run gen-tsconfig-paths</code></td><td><code>tsconfig.base.json</code> 里多一条你的包别名</td></tr>
+    <tr><td><code>pnpm run constraints</code></td><td>没有输出 = <code>package.json</code> 的硬性清单全过</td></tr>
+    <tr><td><code>pnpm exec tsc -b packages/experimental/hello-greet</code></td><td><code>lib/types/index.d.ts</code> 出现</td></tr>
+  </tbody>
+</table>
+<p>四条都过了，你就有了第一个<b>正规包</b>——不是"更正式的练习场"，是仓库里一个别人也会编译、会被门禁检查的东西。</p>
+</div>
+
+<h2>为什么现在做这个</h2>
+<p><code>basic/</code>、<code>framework/</code>、<code>practice/</code> 三层你都走完了，<code>basic/publish</code> 也在你自己的终端跑通了。整个官方路径上只剩这一块没实操过：<b>正规包长什么样</b>——它多出来的不是代码，是登记和账单。这也是你 <a href="../MISSION.md">MISSION.md</a> 里那条"能判断一件事该停在 <code>--patch</code>，还是值得搬进 <code>packages/</code>"的直接练习。</p>
+
+<h2>知识一 · 先看实物，别先背名词</h2>
+<p>打开仓库里一个真包：<a href="../../packages/experimental/tool-agent-team/package.json"><code>packages/experimental/tool-agent-team/</code></a>。它就是"一个工具一个包"的最小形态，而你练习场里每个文件在它里面都有对应位置：</p>
+<table>
+  <thead><tr><th>真包里的文件</th><th>干什么</th><th>你练习场里的对应物</th></tr></thead>
+  <tbody>
+    <tr><td><code>package.json</code></td><td>包的身份：名字、入口指向 <code>lib/index.js</code>、依赖声明</td><td>没有（练习场不是包）</td></tr>
+    <tr><td><code>tsconfig.json</code></td><td>这个包自己的编译边界：<code>rootDir: src</code>、extends 根配置、references 它依赖的包</td><td><code>scratch-plugin/tsconfig.json</code></td></tr>
+    <tr><td><code>src/index.ts</code></td><td>插件本体：<code>name</code> / <code>inject</code> / <code>apply</code></td><td><code>src/my-plugin.ts</code></td></tr>
+    <tr><td><code>tests/</code></td><td>行为测试（也在这里，不在 <code>src/__tests__/</code>）</td><td>没有</td></tr>
+    <tr><td><code>README.md</code> / <code>README.zh.md</code></td><td>这个包的契约，门禁检查章节结构</td><td>没有</td></tr>
+    <tr><td><code>locale/en.json</code> / <code>zh.json</code></td><td>插件在界面上的展示名（可选）</td><td>没有</td></tr>
+  </tbody>
+</table>
+<p>前三个是"跑起来需要的"，后三个是"搬进产品要付的账"。这一节只做前三个。</p>
+
+<h2>知识二 · 三处登记，少一处症状各不同</h2>
+<pre><code>你的包
+ ├─ ① package.json            → 它是谁、入口在哪、能引用谁
+ ├─ ② tsconfig.host.json 的 references → 它属于哪个编译单元（host 或 client，二选一）
+ └─ ③ 启动清单（profile 或 --patch）  → 启动时真的挂上它</code></pre>
+<table>
+  <thead><tr><th>少登记哪一处</th><th>你会看到什么</th></tr></thead>
+  <tbody>
+    <tr><td>① <code>package.json</code> 没写好</td><td>目录只是文件夹：没别名、没入口、<code>pnpm run constraints</code> 直接报错</td></tr>
+    <tr><td>② <code>tsconfig.host.json</code> 里没有它</td><td><code>pnpm run typecheck</code> 从不检查你的源码——代码写错了也没人告诉你</td></tr>
+    <tr><td>③ 启动清单里没有它</td><td>编译全过、测试全绿，但网页里根本没有这个工具</td></tr>
+  </tbody>
+</table>
+<p>还有一处不用你写：<code>tsconfig.base.json</code> 里那几百行包别名是<b>生成</b>的（<code>pnpm run gen-tsconfig-paths</code> 扫 <code>packages/*/*</code>），CI 用 <code>verify-tsconfig-paths</code> 查有没有漏。所以搬一个包不是"建文件夹"，是"让四套机制同时知道它"。</p>
+
+<h2>知识三 · 尺子：搬进 <code>packages/</code> 是签合同，不是升级</h2>
+<table>
+  <thead><tr><th></th><th><code>scratch-plugin/</code> + <code>--patch</code></th><th><code>packages/</code></th></tr></thead>
+  <tbody>
+    <tr><td>谁看得见</td><td>只有你，只在这台机器</td><td>整个仓库，CI，以及（默认）npm 上的使用者</td></tr>
+    <tr><td>改代码的代价</td><td>改完刷新就行</td><td>编译、门禁、测试、README 契约都要跟上</td></tr>
+    <tr><td>什么时候选它</td><td>试想法、自己用、还不确定</td><td>确定要长期存在，别人（或未来的你）会依赖它</td></tr>
+  </tbody>
+</table>
+<p>关键一条：<code>packages/experimental/</code> 下的包<b>默认属于发布家族</b>，会随 dsh 一起发到 npm。想留在本地就得显式登记为私有——这正是这一节第 2 步那一行。剩下的账单长这样，今天只付前两行：</p>
+<table>
+  <thead><tr><th>账单项目</th><th>这节付</th></tr></thead>
+  <tbody>
+    <tr><td><code>package.json</code> 不变式、三处登记、别名生成</td><td>✅ 今天</td></tr>
+    <tr><td>能被 <code>tsc -b</code> 编过（拿到 <code>lib/types/index.d.ts</code>）</td><td>✅ 今天</td></tr>
+    <tr><td><code>README.md</code> + <code>README.zh.md</code>（含 Model Experience、Known Limitations 两节）</td><td>下一节</td></tr>
+    <tr><td><code>tests/</code> 行为测试（CI 覆盖率按文件 100%）</td><td>下一节</td></tr>
+    <tr><td><code>locale/</code> 展示名、<code>doc-sync</code> / <code>hygiene</code> 门禁</td><td>下一节</td></tr>
+  </tbody>
+</table>
+
+<h2>动手</h2>
+<p>全部在<b>你自己的终端</b>里做（这个网页会话的沙箱会挡住 <code>tsx</code> 的子进程）。工作目录：<code>C:\QQQQQ\claudeCode\dsh-playground</code>。</p>
+
+<h3>1. 建目录</h3>
+<pre><code>packages/experimental/hello-greet/</code></pre>
+<p><b>名字有硬性前缀</b>：experimental 组的包必须叫 <code>@deepseek-ai/dsh-experimental-*</code>，否则 <code>constraints</code> 会把包名打回来。</p>
+
+<h3>2. 先登记"这是私有的"（一行）</h3>
+<p>改 <a href="../../scripts/experimental-package-policy.ts"><code>scripts/experimental-package-policy.ts</code></a>：</p>
+<pre><code>export const PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES: readonly string[] = [
+  'packages/experimental/hello-greet',
+]</code></pre>
+<p>不加这一行、又写了 <code>"private": true</code>，<code>constraints</code> 会报 <code>public experimental package must not set "private": true</code>；反过来不加 <code>private</code>，这个玩具就会跟着 dsh 发布出去。两处必须一起改。</p>
+
+<h3>3. 四个文件</h3>
+<p><code>package.json</code>（<code>version</code> 抄根 <code>package.json</code> 的，现在是 <code>0.2.1-alpha.1</code>）：</p>
+<pre><code>{
+  "name": "@deepseek-ai/dsh-experimental-hello-greet",
+  "description": "Practice greet tool promoted into a workspace package",
+  "version": "0.2.1-alpha.1",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/experimental/hello-greet"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/cordis": "workspace:~"
+  }
+}</code></pre>
+<p>这几行不是随便写的，<code>pnpm run constraints</code> 逐条检查：<code>type</code> 必须是 <code>module</code>；<code>main</code> 必须指 <code>lib/index.js</code>；<code>exports["."]</code> 必须同时给出 <code>types</code> 和 <code>default</code>；<code>files</code> 必须正好是这两项；<code>@deepseek-ai/cordis</code> 必须同时出现在 <code>peerDependencies</code> 和 <code>devDependencies</code> 且范围一致；每个 peer 依赖都要在 dev 里镜像一份。</p>
+
+<p><code>tsconfig.json</code>：</p>
+<pre><code>{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../core/tools" }
+  ]
+}</code></pre>
+
+<p><code>src/index.ts</code>——就是你练习场里那个 <code>greet</code> 工具，去掉 <code>greeter</code> / <code>greetCounter</code> 两个依赖，改成一个文件自足（拆分留给"真的有第二个实现"那一天）：</p>
+<pre><code>import type { Context } from '@deepseek-ai/cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+/** 支持的问候语言。这份清单在这里拥有，类型从它推出。 */
+const GREET_LANGUAGES = ['zh', 'en'] as const
+
+type GreetLanguage = (typeof GREET_LANGUAGES)[number]
+
+/** 一次问候请求。 */
+interface GreetRequest {
+  name: string
+  language: GreetLanguage
+}
+
+/**
+ * 按语言拼出问候语。
+ * @param request - 名字与语言。
+ * @returns 拼好的问候语。
+ */
+function greet(request: GreetRequest): string {
+  return request.language === 'en' ? `Hello, ${request.name}!` : `你好，${request.name}！`
+}
+
+export const name = 'greet-tool'
+
+/** 工具注册表就绪之前，这个插件停在 PENDING。 */
+export const inject = ['tools']
+
+/**
+ * 注册 greet 工具。
+ * @param ctx - 插件上下文。
+ */
+export function apply(ctx: Context): void {
+  ctx.tools.register(
+    defineTool({
+      name: 'greet',
+      description: 'Greet someone by name.',
+      parameters: {
+        name: {
+          type: 'string',
+          required: true,
+          description: 'The name to greet',
+        },
+        language: {
+          type: 'string',
+          enum: [...GREET_LANGUAGES],
+          description: 'Greeting language: zh or en. Defaults to zh.',
+        },
+      },
+      output: {
+        schema: { type: 'string' },
+        render: (_args, value) => [{ type: 'text', text: value }],
+      },
+      async execute(args) {
+        return greet({ name: args.name, language: args.language ?? 'zh' })
+      },
+    }),
+  )
+}</code></pre>
+<p>注意<b>写法没变</b>：函数插件用具名导出，<code>default</code> 是服务类的写法，两者不能混。搬运不改变行为，只改变它被谁检查。</p>
+
+<h3>4. 登记进编译单元</h3>
+<p>打开 <a href="../../tsconfig.host.json"><code>tsconfig.host.json</code></a>，在 <code>references</code> 里加一行（放在其它 <code>./packages/experimental/...</code> 旁边即可）：</p>
+<pre><code>{ "path": "./packages/experimental/hello-greet" },</code></pre>
+<p>普通包<b>只属于一个</b>聚合：这里是 host。<code>client</code> 是给浏览器那一半用的，两个都加是错的。</p>
+
+<h3>5. 跑四条命令</h3>
+<pre><code>pnpm install
+pnpm run gen-tsconfig-paths
+pnpm run constraints
+pnpm exec tsc -b packages/experimental/hello-greet
+
+# 看证据
+Test-Path packages/experimental/hello-greet/lib/types/index.d.ts   # True
+Select-String -Path tsconfig.base.json -Pattern 'hello-greet'      # 生成器加的那条别名</code></pre>
+<p><code>tsc -b</code> 第一次可能跑一两分钟（它顺带检查这个包引用的 <code>vendor/cordis</code>、<code>core/tools</code>）。没有输出就是成功。</p>
+
+<h3>6. 加时赛（可选）：让它真的挂上</h3>
+<p>到现在为止，这个包只是"能被编译"。要真的出现在网页里，还差两步：<code>pnpm run build</code>（tsdown 把 <code>lib/types/index.js</code> 打包成 <code>lib/index.js</code>，也就是 <code>main</code> 指的那个文件），然后写一个 patch：</p>
+<pre><code># scratch-plugin/package-greet.patch.yml
+- insert:
+    - id: hello-greet
+      name: 'C:/QQQQQ/claudeCode/dsh-playground/packages/experimental/hello-greet/lib/index.js'
+
+pnpm dsh web --patch ./scratch-plugin/package-greet.patch.yml</code></pre>
+<p>用绝对路径是为了绕开"这个包还没被谁依赖、所以 <code>node_modules</code> 里没有它"的问题——练习场一直就是这么挂的。做完这一步，你就有"同一个工具，两条挂载路径"的完整对照了。不顺就跳过，下一节本来就要走这条。</p>
+
+<h2>检查你是否真的懂了</h2>
+
+<div class="quiz" data-quiz data-explain="references 决定它属于哪个编译单元，没登记就没人在 typecheck 里看它。">
+  <p class="quiz-q">1. 包建好了，但你没把它加进 <code>tsconfig.host.json</code> 的 <code>references</code>。后果是？</p>
+  <button class="quiz-opt" data-why="加载看的是 package.json 的入口和启动清单，和聚合无关。">启动时挂不上，终端不会打印那行日志</button>
+  <button class="quiz-opt is-answer" data-why="没进任何聚合，全仓库的 typecheck 就不再编译它。">它不属于任何编译单元，typecheck 不再检查它</button>
+  <button class="quiz-opt" data-why="方向反了：两个聚合都加才是错误做法。">host 和 client 两个编译单元都会各编译它一次</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="默认并入发布家族；要留在本地得进 PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES。">
+  <p class="quiz-q">2. 一个新建的 <code>packages/experimental/xxx/</code> 包，你什么都没声明，它的默认身份是？</p>
+  <button class="quiz-opt is-answer" data-why="experimental 组默认公开，会随 dsh 发布，所以要私有必须显式登记。">并入发布家族，会跟着 dsh 一起发到 npm</button>
+  <button class="quiz-opt" data-why="正好相反：不声明才是公开的那一种。">只在本机可用，永远不会进入发布产物</button>
+  <button class="quiz-opt" data-why="发布策略与包是否被引用、是否在源码里无关。">只在被别的包引用之后才可以被发布</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="main 指向构建产物；练习场那条路径由 tsx 直接吃源码，所以不用构建。">
+  <p class="quiz-q">3. 练习场能用绝对路径直接指 <code>src/*.ts</code>，正规包却要先 <code>pnpm run build</code>。为什么？</p>
+  <button class="quiz-opt" data-why="本地 workspace 包不需要发布，构建与发布是两件事。">包必须先发布到 npm，Loader 才肯加载它</button>
+  <button class="quiz-opt" data-why="权限只影响读写，和能不能加载无关。">包目录的权限和练习场不同，不让直接读源码</button>
+  <button class="quiz-opt is-answer" data-why="package.json 的入口指向 lib/index.js，那是构建产物；源码只有 tsx 能直读。">入口指向构建产物 <code>lib/</code>，源码得靠 tsx 才读得动</button>
+</div>
+
+<h2>卡住了看这里</h2>
+<table>
+  <thead><tr><th>现象</th><th>先查什么</th></tr></thead>
+  <tbody>
+    <tr><td><code>constraints</code> 报 <code>must set "private": true</code></td><td>第 2 步那一行有没有加进 <code>PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES</code>（目录字符串要写全，含 <code>packages/</code> 前缀）。</td></tr>
+    <tr><td><code>constraints</code> 报 <code>version must match root version</code></td><td>把根 <code>package.json</code> 的 <code>version</code> 原样抄进你的包。</td></tr>
+    <tr><td><code>constraints</code> 报 <code>files must be [...]</code></td><td>照上面那份写；多一项少一项都会报，报错里会直接给出正确列表。</td></tr>
+    <tr><td><code>constraints</code> 报 <code>must start with "@deepseek-ai/dsh-experimental-"</code></td><td>experimental 组的包名前缀是硬性的。</td></tr>
+    <tr><td><code>tsc -b</code> 报找不到 <code>../../../tsconfig.base.json</code></td><td>目录层级必须是 <code>packages/&lt;组&gt;/&lt;包&gt;</code>，多一层少一层都会错。</td></tr>
+    <tr><td><code>test:coverage</code> / CI 说你的包没测试</td><td>正常，这一节还没做 <code>tests/</code>——那是下一节的账。</td></tr>
+    <tr><td><code>spawn EPERM</code> / esbuild 报错</td><td>你在这个网页会话里跑了。换到自己的终端。</td></tr>
+  </tbody>
+</table>
+
+<h2>这一节之后</h2>
+<p>把四条命令的实际结果贴回来（尤其是 <code>Select-String</code> 找到的那条别名和 <code>Test-Path</code> 的 <code>True</code>），我据此写一条 learning record，然后我们决定下一节是<b>把账单付完</b>（README 两节 + 行为测试 + <code>locale/</code>，让 <code>doc-sync</code> / <code>hygiene</code> 也绿），还是先<b>把工具真的挂进网页</b>给它一个模型调用的回合。两条都不急。</p>
+
+<div class="callout">
+<p><strong>随时可以问。</strong>哪一步的报错看不懂，把原文整段贴给我——报错里通常已经写了正确写法。卡住是正常的，猜过去才是浪费。</p>
+</div>
+
+<footer>
+主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md">docs/cookbook/adding-a-package.zh.md</a>（添加 workspace 包的逐文件清单）。实物：<a href="../../packages/experimental/tool-agent-team/package.json">packages/experimental/tool-agent-team/</a>。规则：<a href="../../scripts/check-workspace-constraints.ts">scripts/check-workspace-constraints.ts</a>、<a href="../../packages/experimental/AGENTS.md">packages/experimental/AGENTS.md</a>。
+配套速查：<a href="../reference/0002-dsh-package-skeleton.html">速查 0002 · 正规包骨架与账单</a>。上一课：<a href="0001-basic-publish-bundle-and-profile.html">lesson 0001 · 装进 demo profile</a>。术语：<a href="../GLOSSARY.md">GLOSSARY.md</a>。偏好：<a href="../NOTES.md">NOTES.md</a>。
+</footer>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

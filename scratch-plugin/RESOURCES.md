@@ -12,8 +12,12 @@
   开发一个工具。用在：说明书三件套 + `execute` 怎么写。
 - [`basic/config.zh.md`](../docs/user/develop/basic/config.zh.md)
   让插件可配置。用在：`interface Config` 与 `const Config = Schema` 的分工。
-- [`basic/publish.zh.md`](../docs/user/develop/basic/publish.zh.md) ← **当前这一课的主要来源**
-  打包与安装插件。用在：组合包 / profile 的区别、`dsh plugin add`、层顺序。
+- [`basic/publish.zh.md`](../docs/user/develop/basic/publish.zh.md)
+  打包与安装插件。用在：组合包 / profile 的区别、`dsh plugin add`、层顺序。（lesson 0001 已通过）
+- [`docs/cookbook/adding-a-package.zh.md`](../docs/cookbook/adding-a-package.zh.md) ← **当前这一课的主要来源**
+  添加 workspace 包的逐文件清单。用在：正规包的目录、`package.json` 不变式、聚合登记、README 的 Model Experience 与 Known Limitations 两节、验证命令。
+- [`packages/experimental/AGENTS.md`](../packages/experimental/AGENTS.md)
+  experimental 组的规则。用在：`dsh-experimental-*` 前缀、默认并入发布家族、私有例外清单。
 - [`framework/index.zh.md`](../docs/user/develop/framework/index.zh.md) / [`service.zh.md`](../docs/user/develop/framework/service.zh.md) / [`events.zh.md`](../docs/user/develop/framework/events.zh.md)
   生命周期 / 服务与依赖 / 事件系统。用在：`inject` 为什么停在 PENDING、服务怎么提供、四种事件模式。
 - [`practice/index.zh.md`](../docs/user/develop/practice/index.zh.md) / [`llm-adapter.zh.md`](../docs/user/develop/practice/llm-adapter.zh.md)
@@ -29,6 +33,7 @@
 ### 权威源（教程和参考都不一致时，看代码）
 
 - [`packages/bundle/base/cordis.patch.yml`](../packages/bundle/base/cordis.patch.yml)：真实启动清单，平台差异（`disabled: !!js process.platform ...`）就在这里。
+- [`scripts/check-workspace-constraints.ts`](../scripts/check-workspace-constraints.ts) 与 [`packages/experimental/tool-agent-team/`](../packages/experimental/tool-agent-team/package.json)：正规包的不变式（谁在查、查什么）与最小实物（一个工具一个包）。
 - [`packages/shell/`](../packages/shell/)：一条 seam 的标准长相（定义 + 四个实现 + 两个消费）。
 - [`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts) 与 `types.ts`：`LlmAdapter` 与 `StreamChunk`。
 - 各包 `README.zh.md`：包的契约，例如 `packages/shell/shell/README.zh.md` 里的「一个组合只挂一个提供方」。
