@@ -87,6 +87,32 @@ _避免_: schema、接口文档
 **部署级 / 运行期**：
 部署级的决定写进 yml（换实现）；每个用户、每次调用都可能不同的东西放运行期参数或配置项。
 
+## 包与仓库登记
+
+**正规包（workspace 包）**：
+`packages/<组>/<包>/` 下带 `package.json` 的包。它不是"更正式的练习场"——进了 `packages/` 就等于签合同：编译、门禁、README 契约、（默认）发布都算你的。
+_避免_: 正式插件、生产插件
+
+**四处登记**：
+一个包要被仓库认下，得同时出现在四处：① `package.json` ② 聚合的 `references` ③ `tsconfig.base.json` 的 `paths`（源码别名）④ 启动清单。少哪一处，症状各不同。
+_避免_: 配置项、注册
+
+**聚合（编译单元）**：
+`tsconfig.host.json` / `tsconfig.client.json` 两个检查单元；普通包只属于其中一个。进不了聚合 = 全仓库的 `typecheck` 不看它。
+_避免_: 项目组、工作区
+
+**源码别名（paths）**：
+`tsconfig.base.json` 里把包名指到 `./packages/<组>/<包>/src` 的那条映射。生成器只代写「包名 = `@deepseek-ai/dsh-<目录名>`」的包，其余（含所有 `dsh-experimental-*`）**手写**在 `BEGIN generated package aliases` 那一行之前。
+_避免_: 路径映射、import 映射
+
+**发布家族 / 私有例外**：
+`packages/experimental/` 的包默认并入发布家族（随 dsh 发到 npm）。要留在本地：目录写进 `PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES`、manifest 写 `"private": true`，两处同时改。
+_避免_: 私包、内部包
+
+**构建产物**：
+`package.json` 的 `main` 指的 `lib/index.js`（tsdown 从 `lib/types/index.js` 打出来）。所以按包名加载的永远是构建产物；`src/*.ts` 只有 tsx 读得动。
+_避免_: 输出、dist
+
 ## 能力替换
 
 **seam**：
