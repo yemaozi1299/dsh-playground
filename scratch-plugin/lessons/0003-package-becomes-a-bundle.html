@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0003 · 让你的包自己带一层</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>让你的包自己带一层：从正规包到组合包</h1>
+<p class="subtitle">教学工作区 lesson 0003 · 接 lesson 0002 · 约 20 分钟 · 速查：<a href="../reference/0002-dsh-package-skeleton.html">速查 0002</a>（第八节就是这一课）· 术语：<a href="../GLOSSARY.md">GLOSSARY.md</a></p>
+
+<div class="win">
+<h3>这一节的胜利条件</h3>
+<p>现在的 <code>hello-greet</code> 只是“能编译”。这一节给它加一层启动清单，让你的 <b>web profile</b> 认下这一层，最后在网页里让模型真的调用 <code>greet</code>：</p>
+<pre><code>pnpm run constraints                  # 静默 = files 那一项已经改对
+pnpm dsh --profile web --dump-config  # 出现一层  # == @deepseek-ai/dsh-experimental-hello-greet
+pnpm dsh web                          # 网页里能选到 greet，并让它跟 Ada 打个招呼</code></pre>
+<p>三样都看到，你手里就有了同一个工具的两种挂法：练习场靠 <code>--patch</code> 指路径，正规包靠<b>包自己声明的那一层</b>。</p>
+</div>
+
+<h2>为什么现在做这个</h2>
+<p>lesson 0002 结束时，包能编译，<code>lib/index.js</code> 也在，可网页里就是看不见 <code>greet</code>：第四处登记（启动清单）还没做。这条路你的 <a href="../../hello-plugin/package.json"><code>hello-plugin/</code></a> 在 lesson 0001 已经走过一次，区别在于那次是两个手写文件的最小包，这回是有编译边界、有依赖、还要过门禁的正规包。走到这一步，「组合包」和「profile」就接上了。</p>
+
+<h2>知识一 · 组合包 = 正规包 + 一层清单 + 一句声明</h2>
+<p>先看实物，打开你自己写过的那两个文件：</p>
+<pre><code>hello-plugin/package.json
+  "files": ["index.js", "cordis.patch.yml"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }   ← 这一句让它成为组合包
+
+hello-plugin/cordis.patch.yml
+  - insert:
+      - id: hello
+        name: dsh-hello-plugin                             ← 这一层要挂的行</code></pre>
+<p>就这两样。<b>没有 <code>dsh.bundle</code> 的包“仍然可以安装，但只是普通依赖”，不会贡献任何一层</b>。这句话 lesson 0001 的表里就有，现在换你亲手在自己的包上写一遍。</p>
+<table>
+  <thead><tr><th></th><th>练习场插件（<code>scratch-plugin/</code>）</th><th>组合包（你的 <code>hello-greet</code>）</th></tr></thead>
+  <tbody>
+    <tr><td>谁决定挂哪一行</td><td>你每次在命令行加 <code>--patch</code></td><td>包里的 <code>cordis.patch.yml</code></td></tr>
+    <tr><td>谁记得它</td><td>没人，关掉就没了</td><td>profile 的 <code>dsh.profile.bundles</code> 列表</td></tr>
+    <tr><td>装给别人用</td><td>做不到</td><td>装进任意 profile：<code>dsh plugin add</code></td></tr>
+  </tbody>
+</table>
+
+<h2>知识二 · <code>dsh plugin add</code> 到底做了三件事</h2>
+<pre><code>pnpm dsh plugin --profile web add ./packages/experimental/hello-greet
+  ① 在 profile 目录里跑 pnpm：本地目录用 link: 记进 dependencies
+  ② 读这个包的 manifest，看有没有 dsh.bundle
+       有 → 它贡献的那一层会被校验、并加进 dsh.profile.bundles 列表
+       没有 → 打印一句警告，只当普通依赖装着（层不会出现）
+  ③ 之后每次启动这个 profile，都会按 bundles 列表把那几层叠上去</code></pre>
+<p>那句警告值得记住原文，它就是漏写 <code>dsh.bundle</code> 时的样子：</p>
+<pre><code>dsh: warning: &lt;包名&gt; declares no dsh.bundle — installed as a plain dependency, not a profile layer</code></pre>
+<p>层的顺序还是你熟的那条：bundles 列表顺序 → profile 自己的 <code>cordis.patch.yml</code> → 各 <code>--patch</code>。所以以后想临时盖掉自己包里的某一行，照旧用 <code>--patch</code>，不用动包。</p>
+<div class="callout">
+<p><strong>这一步会动到你每天都在用的 <code>web</code> profile。</strong>改动只有一条 <code>link:</code> 依赖和一个 bundles 条目，不复制代码，随时能撤：</p>
+<pre><code>pnpm dsh plugin --profile web remove @deepseek-ai/dsh-experimental-hello-greet</code></pre>
+<p>不想动 profile 的兜底做法在最后一步。</p>
+</div>
+
+<h2>动手</h2>
+<p>在<b>你自己的终端</b>里做，仓库根目录。</p>
+
+<h3>1. 给包加一个 patch 文件</h3>
+<p>新建 <code>packages/experimental/hello-greet/cordis.patch.yml</code>：</p>
+<pre><code>- insert:
+    - id: hello-greet
+      name: '@deepseek-ai/dsh-experimental-hello-greet'</code></pre>
+<p><code>name</code> 写自己的包名即可。启动时它从 profile 的 <code>node_modules</code> 解析，也就是你第 4 步装进去的那份。</p>
+
+<h3>2. manifest 加三处</h3>
+<pre><code>  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",        ← 新增：让 patch 文件可以被引用
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",                                ← 新增：patch 文件要跟着发布
+    "lib/types/**/*.d.ts"
+  ],
+  "dsh": {                                             ← 新增：声明"我贡献一层"
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },</code></pre>
+<p><code>dsh</code> 放在顶层，和 <code>exports</code> 同级，别塞进 <code>exports</code> 里。三项缺哪一样，<code>constraints</code> 都会报 <code>files must be [...]</code>，报错里直接给出你该有的列表。</p>
+<p>片段里的 <code>← 新增</code> 只是标注，别抄进文件。删注释时把行尾的对齐空格一起删掉：pre-commit 的 <code>whitespace (staged)</code> 会拦行尾空白，实现就是 <code>git diff --cached --check</code>。</p>
+
+<h3>3. 先验证清单</h3>
+<pre><code>pnpm run constraints           # 静默 = files 已经是正确的那三项</code></pre>
+
+<h3>4. 装进 web profile</h3>
+<pre><code>pnpm dsh plugin --profile web add ./packages/experimental/hello-greet</code></pre>
+<p>输出末尾不该出现 <code>declares no dsh.bundle</code> 那句警告。接着看 profile 记下了什么：</p>
+<pre><code>Get-Content "$env:USERPROFILE\.dsh\profiles\web\package.json"</code></pre>
+<p><code>dependencies</code> 里应该多出一条 <code>"@deepseek-ai/dsh-experimental-hello-greet": "link:C:/.../packages/experimental/hello-greet"</code>，<code>dsh.profile.bundles</code> 末尾多出你的包名。</p>
+
+<h3>5. 看那一层，再启动</h3>
+<pre><code>pnpm dsh --profile web --dump-config | Select-String 'hello-greet'
+# 期望：出现  # == @deepseek-ai/dsh-experimental-hello-greet  这一段标记
+
+pnpm dsh web</code></pre>
+<p>网页起来后，在对话框里说一句「用 greet 工具跟 Ada 打个招呼」。工具列表里能看到 <code>greet</code>，模型调用它并回了问候语，这一节就算过了。</p>
+
+<h3>6. 兜底：不想动 profile 的话</h3>
+<p><code>--patch</code> 永远是最外一层，所以不装 profile 也能看效果，代价是每次启动都得带上它：</p>
+<pre><code># scratch-plugin/greet.patch.yml
+- insert:
+    - id: hello-greet
+      name: 'C:/QQQQQ/claudeCode/dsh-playground/packages/experimental/hello-greet/lib/index.js'
+
+pnpm dsh web --patch ./scratch-plugin/greet.patch.yml</code></pre>
+<p>这里必须写 <code>lib/index.js</code> 的绝对路径：还没有谁的 <code>node_modules</code> 认得这个包名，解析不到。两种办法各试一遍，“什么时候能用包名、什么时候只能用路径”就清楚了。</p>
+
+<h2>检查你是否真的懂了</h2>
+
+<div class="quiz" data-quiz data-explain="本地目录用 link: 记进 dependencies，层则靠 bundles 列表生效，两件事都由这条命令完成。">
+  <p class="quiz-q">1. <code>dsh plugin --profile web add ./某个本地目录</code> 之后，profile 的 <code>package.json</code> 会怎样？</p>
+  <button class="quiz-opt is-answer" data-why="link: 记住来源，包名进 bundles 才会在启动时贡献一层。">dependencies 加一条 <code>link:</code>，bundles 列表加上包名</button>
+  <button class="quiz-opt" data-why="本地目录不走版本号；bundles 列表也不是 pnpm 写的。">dependencies 加一条版本号，bundles 列表保持原样</button>
+  <button class="quiz-opt" data-why="不记进 dependencies 就解析不到，层也挂不上。">dependencies 不变，只把包名插进 bundles 列表</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="没有 dsh.bundle 的包只是普通依赖，装上了也不会贡献层。">
+  <p class="quiz-q">2. 包装进 profile 了，<code>--dump-config</code> 里却找不到你那一层。先怀疑哪一处？</p>
+  <button class="quiz-opt" data-why="入口错了会表现为加载失败或插件 FAILED，不是整层消失。">包的 <code>main</code> 指错了文件，Loader 找不到入口</button>
+  <button class="quiz-opt is-answer" data-why="装的时候那句 declares no dsh.bundle 警告就是它。">包没声明 <code>dsh.bundle</code>，被当成普通依赖装了</button>
+  <button class="quiz-opt" data-why="patchReload 管的是热重载，不影响层是否存在。">profile 的 <code>patchReload</code> 不是 live，那一层被跳过</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="files 决定发布哪些文件，而门禁要求声明的 patch 文件必须出现在列表里。">
+  <p class="quiz-q">3. 为什么 <code>cordis.patch.yml</code> 必须写进 <code>files</code>？</p>
+  <button class="quiz-opt" data-why="Loader 是读包里的实际文件，不读 files 字段。">Loader 只会读 <code>files</code> 里列出的 patch 文件</button>
+  <button class="quiz-opt" data-why="pnpm 不看 files，它按 manifest 的依赖与入口工作。">pnpm 按 <code>files</code> 决定要不要 link 本地目录</button>
+  <button class="quiz-opt is-answer" data-why="files 是发布清单，门禁逐项核对，缺一项就报 files must be [...]。"><code>files</code> 决定发布哪些文件，门禁会逐项核对</button>
+</div>
+
+<h2>卡住了看这里</h2>
+<table>
+  <thead><tr><th>现象</th><th>先查什么</th></tr></thead>
+  <tbody>
+    <tr><td>装的时候打印 <code>declares no dsh.bundle — installed as a plain dependency</code></td><td>manifest 顶层的 <code>dsh.bundle.patch</code> 没写，或者写进了 <code>exports</code>。补上后先 <code>plugin remove</code> 再 <code>add</code>，否则依赖已存在、不会重新登记。</td></tr>
+    <tr><td><code>constraints</code> 报 <code>files must be [...]</code></td><td>照报错给的列表写。声明了 <code>dsh.bundle</code> 之后，patch 文件就是必备项。</td></tr>
+    <tr><td><code>--dump-config</code> 里没有你那一层</td><td>先看 profile 的 <code>package.json</code>：<code>bundles</code> 里有没有你的包名；再看 <code>dsh.bundle.patch</code> 的路径是不是相对包根的（<code>./cordis.patch.yml</code>）。</td></tr>
+    <tr><td>启动时报 patch 文件读不到 / YAML 错</td><td><code>cordis.patch.yml</code> 顶层必须是数组，<code>insert</code> 下面才是行；缩进用空格。</td></tr>
+    <tr><td>插件一直 PENDING</td><td><code>inject: ['tools']</code> 等的是工具注册表，确认 base 那一层先应用了。</td></tr>
+    <tr><td>工具在列表里，模型却不调用</td><td>回到那三层看：说明书（name / description / parameters）写清楚了吗？那是 lesson 0001 的范围，跟挂载无关。</td></tr>
+    <tr><td>想撤掉这一层</td><td><code>pnpm dsh plugin --profile web remove @deepseek-ai/dsh-experimental-hello-greet</code></td></tr>
+    <tr><td><code>spawn EPERM</code> / esbuild 报错</td><td>你在这个网页会话里跑了。换到自己的终端。</td></tr>
+  </tbody>
+</table>
+
+<h2>这一节之后</h2>
+<p>把三样贴回来：<code>--dump-config</code> 里你那一层的标题行、profile 的 <code>bundles</code> 列表、模型调用 <code>greet</code> 的那次结果（截图或文字都行）。我据此写 learning record 0011。之后再付那份账单：<code>README</code> 两节（Model Experience / Known Limitations）、<code>tests/</code> 行为测试、<code>locale/</code> 展示名，把它从“能挂上的包”变成“能交出去的包”。</p>
+
+<div class="callout">
+<p><strong>随时可以问。</strong>装 profile 那一步输出很长、或者有警告，都整段贴给我；<code>dsh plugin</code> 失败时还会给一个诊断日志路径，也一起贴。</p>
+</div>
+
+<footer>
+主要来源：<a href="../../docs/user/develop/basic/publish.zh.md">docs/user/develop/basic/publish.zh.md</a>（组合包与 profile）、<a href="../../packages/boot/app-boot/src/profile.ts">packages/boot/app-boot/src/profile.ts</a>（层的组装与 patch 路径）、<a href="../../packages/boot/plugin-manager/src/operations.ts">packages/boot/plugin-manager/src/operations.ts</a>（<code>plugin add</code> 的三件事与那句警告）。实物：你自己写的 <a href="../../hello-plugin/package.json">hello-plugin</a>。
+配套速查：<a href="../reference/0002-dsh-package-skeleton.html">速查 0002 · 正规包骨架与账单</a>（第八节）。上一课：<a href="0002-promote-practice-into-a-package.html">lesson 0002 · 把练习搬成正规包</a>。术语：<a href="../GLOSSARY.md">GLOSSARY.md</a>。
+</footer>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

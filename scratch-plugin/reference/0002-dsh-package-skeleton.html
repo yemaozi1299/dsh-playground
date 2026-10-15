@@ -94,6 +94,26 @@ pnpm dsh web --patch ./scratch-plugin/&lt;你的&gt;.patch.yml</code></pre>
   </tbody>
 </table>
 
+<h2>八、从正规包到组合包（多带一层清单）</h2>
+<pre><code>包根/
+  cordis.patch.yml      ← 这一层要挂的行（顶层数组；insert 下面才是行）
+  package.json          ← 三处新增：
+    "exports": { "./cordis.patch.yml": "./cordis.patch.yml", ... }
+    "files":   ["lib/index.js", "cordis.patch.yml", "lib/types/**/*.d.ts"]
+    "dsh":     { "bundle": { "patch": "./cordis.patch.yml" } }   ← 顶层，不在 exports 里</code></pre>
+<pre><code>pnpm run constraints                                    # files 必须含那个 patch 文件，否则报 files must be [...]
+pnpm dsh plugin --profile &lt;名&gt; add ./packages/&lt;组&gt;/&lt;包&gt;    # link: 记进 dependencies + 包名进 bundles
+pnpm dsh --profile &lt;名&gt; --dump-config | Select-String '&lt;包名&gt;'   # 找 # == &lt;包名&gt; 那一层
+pnpm dsh plugin --profile &lt;名&gt; remove &lt;包名&gt;              # 撤销（bundles 列表一起清）</code></pre>
+<table>
+  <thead><tr><th>看到的</th><th>意思</th></tr></thead>
+  <tbody>
+    <tr><td><code>declares no dsh.bundle — installed as a plain dependency, not a profile layer</code></td><td>装上了但不会贡献层：manifest 少了 <code>dsh.bundle</code>。补上后要先 remove 再 add，否则依赖已存在、不会重新登记</td></tr>
+    <tr><td><code>dsh.bundle.patch</code> 是字符串或字符串列表</td><td>一个文件，或按列表顺序应用的多个文件</td></tr>
+    <tr><td>不装 profile 也想看效果</td><td><code>--patch</code> 指 <code>lib/index.js</code> 的绝对路径：包名解析不到时，路径永远能解析</td></tr>
+  </tbody>
+</table>
+
 <footer>
 主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md">docs/cookbook/adding-a-package.zh.md</a>、<a href="../../scripts/check-workspace-constraints.ts">scripts/check-workspace-constraints.ts</a>、<a href="../../scripts/gen-tsconfig-paths.ts">scripts/gen-tsconfig-paths.ts</a>、<a href="../../packages/experimental/AGENTS.md">packages/experimental/AGENTS.md</a>、<a href="../../packages/experimental/tool-agent-team/package.json">packages/experimental/tool-agent-team/</a>。更新于 2026-10-15。
 </footer>
