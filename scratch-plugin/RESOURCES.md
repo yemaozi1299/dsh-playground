@@ -52,5 +52,6 @@
 
 ## Gaps
 
+- **cookbook 没写别名要手写这件事。** `docs/cookbook/adding-a-package.zh.md` 只说"新分组要给通配符加候选路径"，没说 `packages/*/*` 的别名由 `gen-tsconfig-paths` 生成，而且**只生成包名 = `@deepseek-ai/dsh-<目录名>` 的那些**——所以所有 `dsh-experimental-*` 包的别名都得手写进 `tsconfig.base.json` 的生成区之前。2026-10-15 在 lesson 0002 上实测撞到（`no alias maps …`），规则在 `scripts/gen-tsconfig-paths.ts` 的 `collectPackageAliases` 里。已收进 `reference/0002`。
 - 没有「调试插件加载失败」的系统性材料：`--dump-config` 怎么读、Loader 报错怎么定位，教程里只有零星一句。下一课如果需要，先自己整理成 `reference/`。
 - `docs/user/develop/` 没有中文版的 CLI 行为参考对照；`apps/cli/reference/README.zh.md` 是英文优先的参考页。

@@ -45,10 +45,11 @@
   <tbody>
     <tr><td><code>package.json</code></td><td>名字、入口、依赖</td><td>目录只是文件夹；<code>constraints</code> 报错</td></tr>
     <tr><td><code>tsconfig.host.json</code>（或 <code>tsconfig.client.json</code>）的 <code>references</code></td><td><code>{ "path": "./packages/&lt;组&gt;/&lt;包&gt;" }</code>，<b>只加一个聚合</b></td><td>不属于任何编译单元，<code>typecheck</code> 不检查它</td></tr>
-    <tr><td><code>tsconfig.base.json</code> 的生成区</td><td>不用手写：<code>pnpm run gen-tsconfig-paths</code> 扫 <code>packages/*/*</code> 生成</td><td><code>verify-tsconfig-paths</code> 在 CI 里报漂移</td></tr>
+    <tr><td><code>tsconfig.base.json</code> 的 <code>paths</code></td><td>分两种：<b>包名 = <code>@deepseek-ai/dsh-&lt;目录名&gt;</code></b> 的由 <code>gen-tsconfig-paths</code> 写进生成区；<b>其余（含所有 <code>dsh-experimental-*</code>）手写在 <code>BEGIN generated package aliases</code> 之前</b></td><td><code>gen-tsconfig-paths</code> 报 <code>no alias maps …</code>；源码解析掉到构建产物 <code>lib/</code></td></tr>
     <tr><td>启动清单（profile 或 <code>--patch</code>）</td><td>一行 <code>insert</code>，<code>name</code> 指包名或 <code>lib/index.js</code> 绝对路径</td><td>编译全过、测试全绿，网页里没有这个工具</td></tr>
   </tbody>
 </table>
+<p>生成器的判据就一句：<code>name === '@deepseek-ai/dsh-' + 目录名</code>（<a href="../../scripts/gen-tsconfig-paths.ts">scripts/gen-tsconfig-paths.ts</a> 的 <code>collectPackageAliases</code>）。目录 <code>tool-todo</code> ↔ 包名 <code>dsh-tool-todo</code> 能生成；目录 <code>hello-greet</code> ↔ 包名 <code>dsh-experimental-hello-greet</code> 生成不了。别名写错位置会漏，写重了会遮蔽，所以生成区那一行注释别动。</p>
 
 <h2>四、搬不搬的尺子</h2>
 <table>
@@ -63,8 +64,8 @@
 
 <h2>五、命令顺序</h2>
 <pre><code>pnpm install                                             # 认下新目录
-pnpm run gen-tsconfig-paths                              # 补别名（--check 版本是 verify-tsconfig-paths）
-pnpm run constraints                                     # package.json 不变式
+pnpm run gen-tsconfig-paths                              # 检查别名齐不齐：期望 "package aliases are current."
+pnpm run constraints                                     # package.json 不变式（静默 = 通过）
 pnpm exec tsc -b packages/&lt;组&gt;/&lt;包&gt;                       # 编译这个包 → lib/types/index.d.ts
 pnpm run typecheck                                       # 全仓库口径（较慢，含构建）
 
@@ -75,7 +76,7 @@ pnpm dsh web --patch ./scratch-plugin/&lt;你的&gt;.patch.yml</code></pre>
 
 <h2>六、账单（今天 / 以后）</h2>
 <ul>
-  <li><b>跑起来要付：</b><code>package.json</code> 不变式、聚合登记、别名生成、<code>tsc -b</code> 过。</li>
+  <li><b>跑起来要付：</b><code>package.json</code> 不变式、聚合登记、别名（多半要手写）、<code>tsc -b</code> 过。</li>
   <li><b>进产品还要付：</b><code>README.md</code> + <code>README.zh.md</code>（含 Model Experience 与 Known Limitations 两节，<code>verify-package-readme-model-experience</code> / <code>-limitations</code> 查）、<code>tests/</code> 行为测试（CI 覆盖率按文件 100%）、<code>locale/</code> 展示名（<code>verify-package-meta</code>）、<code>doc-sync</code> / <code>hygiene</code> / <code>publint</code>。</li>
 </ul>
 
@@ -83,6 +84,7 @@ pnpm dsh web --patch ./scratch-plugin/&lt;你的&gt;.patch.yml</code></pre>
 <table>
   <thead><tr><th>报错里的关键词</th><th>去改哪</th></tr></thead>
   <tbody>
+    <tr><td><code>no alias maps …; add a hand-written entry … named after something other than its directory</code></td><td>包名与目录名不同（experimental 组必然如此）：在 <code>tsconfig.base.json</code> 生成区<b>之前</b>手写一行别名，结尾逗号别丢</td></tr>
     <tr><td><code>must set "private": true</code> / <code>must not set "private": true</code></td><td>私有清单与 manifest 两处要对齐</td></tr>
     <tr><td><code>version must match root version</code></td><td>抄根 <code>package.json</code> 的 <code>version</code></td></tr>
     <tr><td><code>files must be [...]</code></td><td>照报错里给的列表写</td></tr>
@@ -93,7 +95,7 @@ pnpm dsh web --patch ./scratch-plugin/&lt;你的&gt;.patch.yml</code></pre>
 </table>
 
 <footer>
-主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md">docs/cookbook/adding-a-package.zh.md</a>、<a href="../../scripts/check-workspace-constraints.ts">scripts/check-workspace-constraints.ts</a>、<a href="../../packages/experimental/AGENTS.md">packages/experimental/AGENTS.md</a>、<a href="../../packages/experimental/tool-agent-team/package.json">packages/experimental/tool-agent-team/</a>。更新于 2026-10-14。
+主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md">docs/cookbook/adding-a-package.zh.md</a>、<a href="../../scripts/check-workspace-constraints.ts">scripts/check-workspace-constraints.ts</a>、<a href="../../scripts/gen-tsconfig-paths.ts">scripts/gen-tsconfig-paths.ts</a>、<a href="../../packages/experimental/AGENTS.md">packages/experimental/AGENTS.md</a>、<a href="../../packages/experimental/tool-agent-team/package.json">packages/experimental/tool-agent-team/</a>。更新于 2026-10-15。
 </footer>
 
 </div>
