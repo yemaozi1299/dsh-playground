@@ -28,6 +28,11 @@
 - 2026-10-14 起，`~/.agents/skills/teach/SKILL.md` 的 `disable-model-invocation` 由 `true` 改成 `false`（本地改动，上游默认是 `true`）。用户说「**继续学**」，老师就加载 `teach` 并照本工作区的规矩走。
 - 一次教学的产出落点：课 → `lessons/`，压缩知识 → `reference/`，术语 → `GLOSSARY.md`，心得 → `learning-records/`。
 
+## 2026-10-19 · lesson 0004 的准备
+
+- `hello-greet` 的 README 已经由老师按门禁核对后写进包内（三条 README 门禁跑过；`doc-standard.spec.ts` 的结构项逐条对过）。lesson 0004 不再让学生从空白抄格式，重点是 Model Experience 三格、门禁拒收的判据，以及“改一处再跑”的反馈回路。
+- 下一节顺序：先补 `README.zh.md` 与 `README.i18n.yaml`（`verify-translation-pairing --write`），再清 `doc-sync` 剩下的三份生成物（`gen-config-catalog` / `gen-plugin-packages` / `gen-module-graph`），最后写 `tests/` 的真组合测试。`locale/` 可选。
+
 ## 已知的机器限制
 
 - 网页会话里 `pnpm dsh ...` 起不来（沙箱挡 esbuild 子进程，`spawn EPERM`）：要真启动，请在用户自己的终端跑，然后把他看到的东西贴回来当证据。

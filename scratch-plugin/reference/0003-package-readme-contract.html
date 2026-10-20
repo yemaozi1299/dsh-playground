@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>速查 0003 · 包 README 与 Model Experience</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>速查 0003 · 包 README 与 Model Experience</h1>
+<p class="subtitle">压缩过的规则，不是课。课在 <a href="../lessons/0004-package-readme-contract.html">lesson 0004</a>。术语在 <a href="../GLOSSARY.md">GLOSSARY.md</a>。权威来源：<a href="../../docs/cookbook/adding-a-package.zh.md#4-write-the-package-readme">cookbook 第 4 节</a>、<a href="../../.agents/skills/dsh-doc/templates/package-bundle.md">package-bundle 模板</a>、<a href="../../scripts/verify-package-readme-model-experience.ts">校验脚本</a>。</p>
+
+<h2>一、README 要回答的三件事</h2>
+<p>这个包给谁、怎么装；模型会看见什么；哪些坑接手的人必须知道。门禁按 <code>packages/*/*/package.json</code> 逐个找 README，缺了直接报 <code>missing package README</code>。结构由 <a href="../../scripts/doc-standard.spec.ts">scripts/doc-standard.spec.ts</a> 与三个 <code>verify-package-readme-*</code> 脚本检查。</p>
+
+<h2>二、kind 由事实推出，不是自己挑</h2>
+<table>
+  <thead><tr><th>事实</th><th>kind</th><th>模板</th></tr></thead>
+  <tbody>
+    <tr><td><code>packages/README.md</code> 或 <code>packages/&lt;组&gt;/README.md</code></td><td><code>package-group</code></td><td><code>package-group.md</code></td></tr>
+    <tr><td>manifest 声明了 <code>dsh.bundle.patch</code></td><td><code>package-bundle</code></td><td><code>package-bundle.md</code></td></tr>
+    <tr><td>在 <code>doc-standard.spec.ts</code> 的 <code>PACKAGE_LIBRARIES</code> 清单里</td><td><code>package-library</code></td><td><code>package-library.md</code></td></tr>
+    <tr><td>其余：有 <code>apply</code> 或默认导出 service</td><td><code>package-reference</code></td><td><code>package-reference.md</code></td></tr>
+  </tbody>
+</table>
+<p><code>hello-greet</code> 在 lesson 0003 加了 <code>dsh.bundle.patch</code>，所以是 <code>package-bundle</code>。frontmatter 只写 <code>description</code> 与 <code>kind</code>；<code>name</code>、<code>audience</code>、<code>tags</code>、<code>i18n</code> 都会被拒。</p>
+
+<h2>三、骨架</h2>
+<pre><code>---
+description: "一句话：这个包给谁、解决什么。"
+kind: "package-bundle"
+---
+
+# @deepseek-ai/dsh-&lt;名字&gt;
+
+## Summary
+（≤100 词：装进什么、加什么、怎么撤、边界）
+
+## Table of Contents
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Further Exploration](#further-exploration)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+## Use this package
+## Understand the implementation
+## Further Exploration
+## Model Experience
+## Known Limitations and Deferred Work
+### Dev Note</code></pre>
+<p><code>Summary</code>、<code>Table of Contents</code>、<code>Dev Note</code> 三样是 <code>doc-standard.spec.ts</code> 的硬要求。Summary 超过 100 词会报 <code>Summary has N words; the limit is 100</code>。</p>
+
+<h2>四、Model Experience</h2>
+<p>位置固定：<code>## Model Experience</code> 是最后两个 H2 的倒数第二个，<code>## Known Limitations and Deferred Work</code> 是最后一个。两种写法，二选一。</p>
+
+<h3>结构化条目</h3>
+<pre><code>## Model Experience
+
+### 条目名
+
+#### What the model sees
+
+一段：模型收到的字段、字面文本、结果。
+
+#### Token effect
+
+一段：每次请求的固定成本，加一次调用带来的增量。
+
+#### KV Cache effect
+
+一段：是否在可复用前缀里，什么改动会让缓存失效。</code></pre>
+<p>三格标题逐字固定，顺序固定；每个条目至少有一处具体字面量，三种任选：反引号里的字段名、带标题的 <code>#####</code> 加 <code>```markdown</code> 原文块、工具目录的锚点链接。只有形容词过不了。</p>
+<p>条目标题里出现 <code>schema</code> 这个词，门禁要求链到 <code>../../../docs/tool-catalog.md#&lt;锚点&gt;</code>。工具目录只从固定的一批插件生成，目录里没有的工具，标题就别写 <code>schema</code>。</p>
+
+<h3>一句话形式</h3>
+<pre><code>## Model Experience
+
+None, as &lt;理由&gt;。
+
+#### KV Cache effect
+
+一段。</code></pre>
+<p>也可以以 <code>Indirectly, through …</code> 开头。这种形式要求包名先登记进 <a href="../../scripts/verify-package-readme-model-experience.ts">脚本</a>的 <code>SENTENCE_MODEL_EXPERIENCE</code>，并写清审计理由。只写 <code>None.</code> 会被拒。</p>
+
+<h3>三格各写什么</h3>
+<table>
+  <thead><tr><th>字段</th><th>回答的问题</th><th>greet 的答案</th></tr></thead>
+  <tbody>
+    <tr><td><code>What the model sees</code></td><td>模型收到的字面内容是什么</td><td>工具名 <code>greet</code>、description、<code>name</code> 必填、<code>language</code> 的 enum 是 <code>zh</code> / <code>en</code>、返回一段文本</td></tr>
+    <tr><td><code>Token effect</code></td><td>每次请求固定花多少，调用再加多少</td><td>schema 每次请求都发；一次调用多一条短结果</td></tr>
+    <tr><td><code>KV Cache effect</code></td><td>它在可复用前缀里吗；什么改动会让旧缓存失效</td><td>schema 在前缀里；增删改这个包都会换前缀；调用与结果只追加</td></tr>
+  </tbody>
+</table>
+
+<h2>五、Known Limitations</h2>
+<p>写持久的消费者缺口和维护者约束：缺了什么、后果是什么。至少一条 <code>- </code> 开头的条目，门禁只查这一条。日常清理写进源码 TODO 或 Agent Note。确实没有限制，就登记进 <a href="../../scripts/verify-package-readme-limitations.ts">scripts/verify-package-readme-limitations.ts</a> 的 <code>NO_LIMITATIONS</code>，不要留一个空节。</p>
+
+<h2>六、命令</h2>
+<pre><code>pnpm run verify-package-readme-summaries          # Summary 词数
+pnpm run verify-package-readme-model-experience   # Model Experience 结构
+pnpm run verify-package-readme-limitations        # Known Limitations
+pnpm exec vitest run scripts/doc-standard.spec.ts # 全仓库包 README 的 kind / 骨架
+pnpm run verify-md-wrap                            # 一段一行，不许硬折行
+pnpm run verify-md-links                           # 相对链接与锚点</code></pre>
+
+<h2>七、拒收对照</h2>
+<table>
+  <thead><tr><th>报错</th><th>去改哪</th></tr></thead>
+  <tbody>
+    <tr><td><code>missing package README</code></td><td>文件不在 <code>packages/&lt;组&gt;/&lt;包&gt;/README.md</code></td></tr>
+    <tr><td><code>missing ## Model Experience</code></td><td>标题必须逐字、H2</td></tr>
+    <tr><td><code>… and … must be the final two H2 sections, in that order</code></td><td>把两节挪到最后，顺序不能反</td></tr>
+    <tr><td><code>model-context entry requires exactly three ordered H4 fields</code></td><td>每个 H3 下补齐三格，标题逐字</td></tr>
+    <tr><td><code>structured Model Experience must ground at least one entry …</code></td><td>加反引号字段名、原文块或目录链接</td></tr>
+    <tr><td><code>tool-schema entry must link …</code></td><td>标题里有 <code>schema</code>：改名，或补工具目录锚点</td></tr>
+    <tr><td><code>Summary has N words; the limit is 100</code></td><td>压到 100 词以内</td></tr>
+    <tr><td><code>missing Dev Note</code></td><td>加 <code>### Dev Note</code>（或 H2）</td></tr>
+    <tr><td><code>kind must be package-bundle</code></td><td>frontmatter 的 kind 写错，按 manifest 事实改</td></tr>
+    <tr><td><code>target does not exist</code></td><td>相对链接层数错：README 在第三层，回仓库根要 <code>../../..</code></td></tr>
+  </tbody>
+</table>
+
+<footer>
+主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md#4-write-the-package-readme">docs/cookbook/adding-a-package.zh.md</a>、<a href="../../.agents/skills/dsh-doc/references/metadata-links-i18n.md#the-kind-system">dsh-doc 的 kind 规则</a>、<a href="../../scripts/verify-package-readme-model-experience.ts">verify-package-readme-model-experience.ts</a>、<a href="../../scripts/verify-package-readme-limitations.ts">verify-package-readme-limitations.ts</a>、<a href="../../scripts/doc-standard.spec.ts">doc-standard.spec.ts</a>。实物：<a href="../../packages/experimental/tool-agent-team/README.md">tool-agent-team/README.md</a>、<a href="../../packages/bundle/base/README.md">bundle/base/README.md</a>。更新于 2026-10-19。
+</footer>
+
+</div>
+</body>
+</html>

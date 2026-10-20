@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0004 · 给包写 README：模型看见的东西，得写成合同</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="page">
+
+<h1>给包写 README：模型看见的东西，得写成合同</h1>
+<p class="subtitle">教学工作区 lesson 0004 · 接 lesson 0003 · 约 20 分钟 · 速查：<a href="../reference/0003-package-readme-contract.html">速查 0003</a> · 术语：<a href="../GLOSSARY.md">GLOSSARY.md</a></p>
+
+<div class="win">
+<h3>这一节的胜利条件</h3>
+<p><code>hello-greet</code> 已经能挂进 web profile，仓库的门禁却还不认它：没有 README 的包会被直接点名。这一节把四条检查跑绿，README 才算交出去：</p>
+<pre><code>pnpm run verify-package-readme-summaries
+pnpm run verify-package-readme-model-experience
+pnpm run verify-package-readme-limitations
+pnpm exec vitest run scripts/doc-standard.spec.ts</code></pre>
+<p>完整 <code>doc-sync</code> 还会红。中文对照（<code>README.zh.md</code> 与配对记录）和三份生成物是下一节的事，<code>tests/</code> 更后面。</p>
+</div>
+
+<h2>为什么现在做这个</h2>
+<p>门禁扫的是 <code>packages/*/*/package.json</code>，按目录逐个找 README。少了就报 <code>missing package README</code>，代码写得多好都不看。</p>
+<p>README 在这个仓库里不是宣传页。它要回答三件事：别人怎么装、模型看见什么、哪些坑接手的人必须知道。中间那件由 <code>Model Experience</code> 一节回答，也是这一课真正要学的部分。</p>
+<p>格式很啰嗦，我先按门禁核对了一份，放在 <a href="../../packages/experimental/hello-greet/README.md"><code>packages/experimental/hello-greet/README.md</code></a>。你要做的是核对它、跑检查，再改一处。</p>
+
+<h2>知识一 · kind 由事实推出</h2>
+<p>lesson 0003 你给 manifest 加了 <code>dsh.bundle.patch</code>。这条事实把 README 的 kind 定成 <code>package-bundle</code>，也把模板定成 <code>package-bundle.md</code>。换成 <code>package-reference</code>，<code>doc-standard.spec.ts</code> 会判 <code>kind must be package-bundle</code>。</p>
+<p>同一份检查还查三样结构：<code>## Summary</code>（不超过 100 词）、<code>## Table of Contents</code>、<code>### Dev Note</code>。少一样都红。</p>
+
+<h2>知识二 · Model Experience 三格</h2>
+<p>这一节是整份 README 里唯一必须贴着源码写的地方。三格各回答一个问题：</p>
+<table>
+  <thead><tr><th>字段</th><th>回答什么</th><th>greet 的答案</th></tr></thead>
+  <tbody>
+    <tr><td><code>What the model sees</code></td><td>模型收到的字面内容</td><td>工具名 <code>greet</code>、description、<code>name</code> 必填、<code>language</code> 的 enum、返回一段文本</td></tr>
+    <tr><td><code>Token effect</code></td><td>每次请求固定花多少，调用再加多少</td><td>schema 每次请求都发；一次调用多一条短结果</td></tr>
+    <tr><td><code>KV Cache effect</code></td><td>它在可复用前缀里吗，什么改动会让旧缓存失效</td><td>schema 在前缀里；增删改这个包都会换前缀；结果只追加</td></tr>
+  </tbody>
+</table>
+<p><code>What the model sees</code> 写模型收到的字面内容。不要写“用户可以问候”，要写工具名、description、每个参数的必填与 enum、返回什么。空话过不了门禁：每个条目至少要有一处具体东西，反引号里的字段名、带标题的原文块、或工具目录的锚点链接，三样任选。</p>
+<p><code>Token effect</code> 分两笔：schema 是每次请求的固定成本；一次调用产生的结果是增量。</p>
+<p><code>KV Cache effect</code> 值得多写两句。工具 schema 和系统提示一起排在请求前部，构成可复用的前缀。增删改这个包，前缀就变了，之前缓存的条目不能复用。一次调用产生的结果加在前缀后面，只追加，不破坏前缀。</p>
+<p>为什么不能写 <code>None.</code>：门禁支持一句话形式，但要求包名先登记进 <code>SENTENCE_MODEL_EXPERIENCE</code>，并写清理由。你的包自己注册工具，模型确实会看见东西，所以写结构化条目。</p>
+<p>还有一个坑：条目标题里只要有 <code>schema</code> 这个词，门禁就要求链到 <code>docs/tool-catalog.md</code> 的锚点。<code>greet</code> 不在工具目录里（那份目录只从固定的一批插件生成），所以标题写 <code>Greet tool</code>。</p>
+
+<h2>知识三 · Known Limitations 写给接手的人</h2>
+<p>这一节写持久的约束：什么情况下会踩坑，踩了会看到什么。至少一条 <code>- </code> 开头的条目，门禁只查这一条。</p>
+<p>不要把待办清单写进来。没有限制就登记进 <code>NO_LIMITATIONS</code>，别留一个空节。</p>
+
+<h2>动手</h2>
+<p>在<b>你自己的终端</b>里做，仓库根目录。</p>
+
+<h3>1. 对照源码核一遍</h3>
+<p>打开 <a href="../../packages/experimental/hello-greet/README.md">README</a> 和 <a href="../../packages/experimental/hello-greet/src/index.ts"><code>src/index.ts</code></a>，重点看三处：参数名、<code>language</code> 的 enum 与默认值、返回的文本。README 里写的每个字面量，源码里都要找得到。</p>
+
+<h3>2. 跑四条检查</h3>
+<pre><code>pnpm run verify-package-readme-summaries
+pnpm run verify-package-readme-model-experience
+pnpm run verify-package-readme-limitations
+pnpm exec vitest run scripts/doc-standard.spec.ts</code></pre>
+<p>前三条我在 2026-10-19 跑过，末尾分别是 <code>… Summaries are within 100 words.</code>、<code>… all conform.</code>、<code>… all conform.</code>。<code>doc-standard.spec.ts</code> 要起 vitest，得在你的终端跑；它扫全仓库的包 README，任何一份不合规都红。</p>
+<p>顺带跑排版和链接：</p>
+<pre><code>pnpm run verify-md-wrap
+pnpm run verify-md-links</code></pre>
+<p>README 里的相对链接从 README 所在目录算。回仓库根要 <code>../../..</code>；少一层就落到 <code>packages/docs/</code>，报 <code>target does not exist</code>。</p>
+
+<h3>3. 让门禁咬你一口</h3>
+<p>把 <code>#### KV Cache effect</code> 里的 <code>Cache</code> 改成小写，再跑 <code>pnpm run verify-package-readme-model-experience</code>。报错会指出缺哪个字段。看完改回来，再跑一遍。</p>
+<p>门禁逐字比对标题，不猜你的意思。这一步比读十遍规则有用。</p>
+
+<h3>4. 改一处你自己的话</h3>
+<p>至少改一条 <code>Known Limitations</code>，写你在 lesson 0003 真踩过或真担心的事。现成的一条：<code>language</code> 只认 <code>zh</code> 和 <code>en</code>，别的语言会被 enum 拒掉，现在还没写进限制里。改完再跑一遍三条 README 门禁。</p>
+
+<h2>检查你是否真的懂了</h2>
+
+<div class="quiz" data-quiz data-explain="kind 由 manifest 的事实推出：声明了 dsh.bundle.patch 就是 package-bundle。">
+  <p class="quiz-q">1. 这个包的 README 为什么必须写 <code>kind: "package-bundle"</code>？</p>
+  <button class="quiz-opt" data-why="README 不发布到 npm，发布形态也决定不了 kind。">README 会发布到 npm，所以由发布形态决定 kind</button>
+  <button class="quiz-opt is-answer" data-why="manifest 里有 dsh.bundle.patch，kind 由这条事实推出。">manifest 里有 dsh.bundle.patch，由这条事实推出</button>
+  <button class="quiz-opt" data-why="分组只决定命名前缀与发布策略，不决定 README 的 kind。">包放在 experimental 组，所以由所在分组决定 kind</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="工具 schema 在请求前缀里；改了它，前缀就变了，旧缓存不能复用。">
+  <p class="quiz-q">2. 把工具的参数说明改了一个字，为什么会动到 KV 缓存？</p>
+  <button class="quiz-opt is-answer" data-why="schema 在每次请求的前缀里，前缀变了就不能复用。">工具 schema 在每次请求的前缀里，前缀变了就不能复用</button>
+  <button class="quiz-opt" data-why="lib/index.js 的哈希与模型请求无关，缓存看的是请求内容。">参数说明会被打进 lib/index.js，文件哈希跟着变</button>
+  <button class="quiz-opt" data-why="模型不读 README；它只看收到的请求。">模型会重新读一遍 README，请求里的字数变多</button>
+</div>
+
+<div class="quiz" data-quiz data-explain="三格标题逐字固定：What the model sees、Token effect、KV Cache effect。">
+  <p class="quiz-q">3. 一个结构化的 Model Experience 条目，必须带哪三个 H4？</p>
+  <button class="quiz-opt" data-why="Prompt、schema 成本、模型选择都不是规定的字段。">Prompt text / Schema cost / Model choice</button>
+  <button class="quiz-opt" data-why="用户看到的、token 预算、命中率都不是规定的字段。">What the user sees / Token budget / Cache hit rate</button>
+  <button class="quiz-opt is-answer" data-why="门禁逐字比对这三个标题与顺序。">What the model sees / Token effect / KV Cache effect</button>
+</div>
+
+<h2>卡住了看这里</h2>
+<table>
+  <thead><tr><th>现象</th><th>先查什么</th></tr></thead>
+  <tbody>
+    <tr><td><code>missing package README</code></td><td>文件要在 <code>packages/experimental/hello-greet/README.md</code>，文件名大小写也要对。</td></tr>
+    <tr><td><code>missing ## Model Experience</code></td><td>标题逐字、H2。写成 <code>## Model experience</code> 也会被拒。</td></tr>
+    <tr><td><code>… must be the final two H2 sections</code></td><td>把 <code>Model Experience</code> 和 <code>Known Limitations</code> 挪到最后，顺序不能反。</td></tr>
+    <tr><td><code>requires exactly three ordered H4 fields</code></td><td>每个 H3 下补齐三格，标题与顺序照抄速查 0003。</td></tr>
+    <tr><td><code>must ground at least one entry …</code></td><td>三格里至少放一处反引号字段名、原文块或目录链接。</td></tr>
+    <tr><td><code>tool-schema entry must link …</code></td><td>标题里有 <code>schema</code>：改名，或补 <code>docs/tool-catalog.md</code> 的锚点。</td></tr>
+    <tr><td><code>Summary has N words; the limit is 100</code></td><td>删一句背景，留“装什么、加什么、怎么撤、边界”。</td></tr>
+    <tr><td><code>missing Dev Note</code></td><td>补 <code>### Dev Note</code> 与折叠的 <code>details</code>。</td></tr>
+    <tr><td><code>kind must be package-bundle</code></td><td>frontmatter 的 kind 写错，按 manifest 的事实改。</td></tr>
+    <tr><td><code>target does not exist</code></td><td>相对链接层数错：README 在第三层，回仓库根要 <code>../../..</code>。</td></tr>
+    <tr><td><code>hard-wrapped prose paragraphs</code></td><td>一段话写成一行，别在编辑器里手动折行。</td></tr>
+    <tr><td><code>in-scope documentation must merge bilingual</code></td><td>缺 <code>README.zh.md</code> 与配对记录。下一节第一件事，不归这一节的门禁管。</td></tr>
+    <tr><td><code>spawn EPERM</code> / esbuild 报错</td><td>你在网页会话里跑了，换到自己的终端。</td></tr>
+  </tbody>
+</table>
+
+<h2>这一节之后</h2>
+<p>把四条命令的末尾两三行贴回来，再贴你改的那条限制。下一节先补 <code>README.zh.md</code> 与配对记录，让 <code>verify-translation-pairing</code> 变绿；再清掉三份生成物：<code>docs/config-catalog.md</code>、agent-preset 里的 <code>packages.md</code>、<code>docs/module-graph.md</code>，用生成器重跑，不手改。再下一节写 <code>tests/</code> 里的真组合测试。</p>
+
+<div class="callout">
+<p><strong>随时可以问。</strong>门禁报错不在上面那张表里，就整行贴来，我按脚本的判据告诉你它要什么。</p>
+</div>
+
+<footer>
+主要来源：<a href="../../docs/cookbook/adding-a-package.zh.md#4-write-the-package-readme">docs/cookbook/adding-a-package.zh.md 第 4 节</a>（Model Experience 与 Known Limitations 的写法）、<a href="../../scripts/verify-package-readme-model-experience.ts">scripts/verify-package-readme-model-experience.ts</a>（逐字比对与审计表）、<a href="../../scripts/doc-standard.spec.ts">scripts/doc-standard.spec.ts</a>（kind 与骨架）、<a href="../../scripts/verify-package-readme-limitations.ts">scripts/verify-package-readme-limitations.ts</a>（限制条目）。实物：<a href="../../packages/experimental/hello-greet/README.md">你的 README</a>、<a href="../../packages/experimental/tool-agent-team/README.md">tool-agent-team/README.md</a>。
+配套速查：<a href="../reference/0003-package-readme-contract.html">速查 0003 · 包 README 与 Model Experience</a>。上一课：<a href="0003-package-becomes-a-bundle.html">lesson 0003 · 让你的包自己带一层</a>。术语：<a href="../GLOSSARY.md">GLOSSARY.md</a>。
+</footer>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
